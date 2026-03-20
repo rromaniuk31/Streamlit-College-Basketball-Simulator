@@ -30,7 +30,7 @@ import streamlit as st
 
 st.title("March Madness Monte Carlo Simulator")
 
-n_sim = st.slider("Number of simulations", 100, 50000, 10000)
+n_sim = st.slider("Number of simulations", 100, 1000, 10)
 
 if st.button("Run Simulation"):
     team1 = "Gonzaga"
