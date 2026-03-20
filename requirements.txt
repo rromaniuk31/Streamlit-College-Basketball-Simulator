@@ -1,4 +1,5 @@
 numpy
 pandas
 streamlit
-altair.vegalite.v4
+altair
+collections
