@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
+import streamlit as st
 from collections import Counter
+
+df = pd.read_csv("/Users/acer1/Downloads/team_avgs2026.csv", header = None)
+df = df.loc[1:]
+df = df.rename(columns = {0: "team", 1: "PPG", 2: "PAPG"})
 
 
 def sim_game(team1, team2, stats_df, n_sim):
@@ -24,18 +29,40 @@ def sim_game(team1, team2, stats_df, n_sim):
     
     return t1_points, t2_points, winners
 
-test_df = pd.DataFrame({"team": ["Gonzaga", "Mississippi Valley St"], "PPG": [85.1, 64.2], "PAPG": [66, 83]})
-
-import streamlit as st
 
 st.title("March Madness Monte Carlo Simulator")
+
+first_team_choice = st.selectbox(
+    "Select First Team",
+    options = df["team"].unique(),
+    index = None, # Optional: starts with no option selected
+    placeholder = "Select a team..."
+)
+
+if first_team_choice:
+    first_team_df = df[df["team"] == first_team_choice]
+    team1 = first_team_choice
+else:
+    st.write("Please select a team to simulate.")
+
+
+second_team_choice = st.selectbox(
+    "Select Second Team",
+    options = df["team"].unique(),
+    index = None, # Optional: starts with no option selected
+    placeholder = "Select a second team..."
+)
+
+if second_team_choice:
+    second_team_df = df[df["team"] == second_team_choice]
+    team2 = second_team_choice
+else:
+    st.write("Please select a team to simulate.")
 
 n_sim = st.slider("Number of simulations", 100, 1000, 10)
 
 if st.button("Run Simulation"):
-    team1 = "Gonzaga"
-    team2 = "Mississippi Valley St"
-    _, _, results = sim_game(team1, team2, test_df, n_sim)
+    _, _, results = sim_game(team1, team2, df, n_sim)
     
     # convert to percentages
     winner_array = np.array(results)
@@ -46,5 +73,5 @@ if st.button("Run Simulation"):
     #total = sum(results.values())
     #probs = {k: v / total for k, v in results.items()}
     
-    st.write("Championship Probabilities")
+    st.write("Win Probabilities")
     st.dataframe(probs)
