@@ -4,8 +4,8 @@ import streamlit as st
 from collections import Counter
 
 # Local
-df = pd.read_csv("/Users/acer1/Downloads/team_avgs2026.csv", header = None)
-#df = pd.read_csv("team_avgs2026.csv", header = None)
+#df = pd.read_csv("/Users/acer1/Downloads/team_avgs2026.csv", header = None)
+df = pd.read_csv("team_avgs2026.csv", header = None)
 df = df.loc[1:]
 df = df.rename(columns = {0: "team", 1: "PPG", 2: "PAPG"})
 winner = ""
@@ -57,7 +57,7 @@ st.title("March Madness Monte Carlo Simulator")
 
 first_team_choice = st.selectbox(
     "Select First Team",
-    options = df["team"].unique(),
+    options = df["team"].sort_values(ascending = True).unique(),
     index = None, # Optional: starts with no option selected
     placeholder = "Select a team..."
 )
@@ -71,7 +71,7 @@ else:
 
 second_team_choice = st.selectbox(
     "Select Second Team",
-    options = df["team"].unique(),
+    options = df["team"].sort_values(ascending = True).unique(),
     index = None, # Optional: starts with no option selected
     placeholder = "Select a second team..."
 )
