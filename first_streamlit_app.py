@@ -3,7 +3,9 @@ import pandas as pd
 import streamlit as st
 from collections import Counter
 
-df = pd.read_csv("/Users/acer1/Downloads/team_avgs2026.csv", header = None)
+# Local
+#df = pd.read_csv("/Users/acer1/Downloads/team_avgs2026.csv", header = None)
+df = pd.read_csv("team_avgs2026.csv", header = None)
 df = df.loc[1:]
 df = df.rename(columns = {0: "team", 1: "PPG", 2: "PAPG"})
 
