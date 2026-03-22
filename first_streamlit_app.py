@@ -2,11 +2,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import altair as alt
+import matplotlib.pyplot as plt
 from collections import Counter
 
 df = pd.read_csv("team_avgs2026.csv", header = None)
 df = df.loc[1:]
-df = df.rename(columns = {0: "team", 1: "PPG", 2: "PAPG"})
+df = df.rename(columns = {0: "team", 1: "PPG", 2: "PAPG", 3: "PPG_STD", 4: "PAPG_STD"})
 winner = ""
 
 import base64
@@ -37,12 +38,16 @@ def sim_game(team1, team2, stats_df, n_sim):
     for i in range(n_sim):
         t1_PPG = stats_df[stats_df["team"] == team1]["PPG"]
         t1_PAPG = stats_df[stats_df["team"] == team1]["PAPG"]
+        t1_PPG_std = stats_df[stats_df["team"] == team1]["PPG_STD"]
+        t1_PAPG_std = stats_df[stats_df["team"] == team1]["PAPG_STD"]
 
         t2_PPG = stats_df[stats_df["team"] == team2]["PPG"]
         t2_PAPG = stats_df[stats_df["team"] == team2]["PAPG"]
+        t2_PPG_std = stats_df[stats_df["team"] == team2]["PPG_STD"]
+        t2_PAPG_std = stats_df[stats_df["team"] == team2]["PAPG_STD"]
     
-        t1_points = (np.random.normal(t1_PPG, 12) + np.random.normal(t2_PAPG, 12)) / 2
-        t2_points = (np.random.normal(t2_PPG, 12) + np.random.normal(t1_PAPG, 12)) / 2
+        t1_points = (np.random.normal(t1_PPG, t1_PPG_std) + np.random.normal(t2_PAPG, t2_PAPG_std)) / 2
+        t2_points = (np.random.normal(t2_PPG, t2_PPG_std) + np.random.normal(t1_PAPG, t1_PAPG_std)) / 2
 
         t1_all_points.append(t1_points)
         t2_all_points.append(t2_points)
@@ -98,7 +103,7 @@ if second_team_choice:
 else:
     st.write("Please select a team to simulate.")
 
-n_sim = st.slider("Number of simulations", 100, 1000, 10)
+n_sim = st.slider("Number of simulations", 100, 10000, 1000)
 
 if st.button("Run Simulation"):
     _, _, results, t1_all_points, t2_all_points = sim_game(team1, team2, df, n_sim)
@@ -118,34 +123,54 @@ if st.button("Run Simulation"):
     
     st.write("Win Probabilities")
     st.dataframe(probs)
-    #st.bar_chart(t1_all_points)
-    t1_all_points_df = pd.DataFrame(t1_all_points, columns = ["Points"])
-    t1_all_points_df["Points_Bins"] = t1_all_points_df["Points"].transform(lambda x: pd.cut(x, bins=15, labels=False))
-    mean_df = t1_all_points_df.groupby(["Points_Bins"])["Points"].mean().reset_index()
-    t1_all_points_df = t1_all_points_df.merge(mean_df, on = "Points_Bins")
-    t1_all_points_df["Points_y"] = round(t1_all_points_df["Points_y"], 2)
-    bin_counts = (
-    t1_all_points_df.groupby("Points_y")
-                    .size()
-                    .reset_index(name="count")
-                    .sort_values("Points_y")
-)
-    #chart = alt.Chart(t1_all_points_df).mark_bar().encode(
-    #    # Bin the 'value' data for the x-axis
-    #    alt.X("Points_Bins", bin=True, title="Binned Value Range"),
-    #    # Count the frequency for the y-axis
-    #    y=alt.Y('count()', title="Frequency"),
-    #    # Add tooltips for interactivity
-    #    tooltip=["Points", 'count()']
-    #).properties(
-    #    title="Distribution of Random Data"
-    #).interactive() # Enable interactivity like zooming and panning
 
-    chart = alt.Chart(bin_counts).mark_bar().encode(
-        x=alt.X("Points_y:O", title="Points Bin"),
-        y=alt.Y("count:Q", title="Count")
-    )
+    #t1_all_points_df = pd.DataFrame(t1_all_points, columns = ["Points"])
+    #t1_all_points_df["Points_Bins"] = t1_all_points_df["Points"].transform(lambda x: pd.cut(x, bins=15, labels=False))
+    #mean_df = t1_all_points_df.groupby(["Points_Bins"])["Points"].mean().reset_index()
+    #t1_all_points_df = t1_all_points_df.merge(mean_df, on = "Points_Bins")
+    #t1_all_points_df["Points_y"] = round(t1_all_points_df["Points_y"], 2)
+    #bin_counts = (
+    #t1_all_points_df.groupby("Points_y")
+    #                .size()
+    #                .reset_index(name="count")
+    #                .sort_values("Points_y")
+    #)
+
+    #chart = alt.Chart(bin_counts).mark_bar().encode(
+    #    x=alt.X("Points_y:O", title="Points Bin"),
+    #    y=alt.Y("count:Q", title="Count")
+    #)
 
 
     # Display the chart in the Streamlit app
-    st.altair_chart(chart, use_container_width=True)
+    #st.altair_chart(chart, use_container_width=True)
+
+    t1_df = pd.DataFrame(t1_all_points, columns = ["points"])
+    t1_df["Team"] = "Team 1"
+    t2_df = pd.DataFrame(t2_all_points, columns = ["points"])
+    t2_df["Team"] = "Team 2"
+    both_points = pd.concat([t1_df, t2_df])
+    bins_col = both_points["points"].transform(lambda x: pd.cut(x, bins = 15, labels = False))
+    both_points["Bins"] = bins_col
+    bin_means = both_points.groupby(["Bins"])["points"].mean().reset_index()
+    both_points = both_points.merge(bin_means, on = "Bins")
+
+    #fig, ax = plt.subplots()
+
+    #ax.hist([both_points[both_points["Team"] == "Team 1"]["points_x"], both_points[both_points["Team"] == "Team 2"]["points_x"]], bins=15, stacked=True, color=['cyan', 'Purple'], edgecolor='black')[2]
+
+    combined = np.concatenate([both_points[both_points["Team"] == "Team 1"]["points_x"], both_points[both_points["Team"] == "Team 2"]["points_x"]])
+    print("team1", both_points[both_points["Team"] == team1]["points_x"])
+    print("team2", both_points[both_points["Team"] == team2]["points_x"])
+    bins = np.linspace(combined.min(), combined.max(), 26)  # 25 bins
+
+    fig, ax = plt.subplots()
+
+    plt.hist(both_points[both_points["Team"] == "Team 1"]["points_x"], bins=bins, alpha=0.5, label=team1)
+    plt.hist(both_points[both_points["Team"] == "Team 2"]["points_x"], bins=bins, alpha=0.5, label=team2)
+
+    plt.xlabel("Points")
+    plt.ylabel("Frequency")
+    plt.legend()
+    
+    st.pyplot(fig)
