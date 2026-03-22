@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
+import altair as alt
 from collections import Counter
 
-# Local
-#df = pd.read_csv("/Users/acer1/Downloads/team_avgs2026.csv", header = None)
 df = pd.read_csv("team_avgs2026.csv", header = None)
 df = df.loc[1:]
 df = df.rename(columns = {0: "team", 1: "PPG", 2: "PAPG"})
@@ -33,6 +32,8 @@ def display_logo(team, is_winner):
 
 def sim_game(team1, team2, stats_df, n_sim):
     winners = []
+    t1_all_points = []
+    t2_all_points = []
     for i in range(n_sim):
         t1_PPG = stats_df[stats_df["team"] == team1]["PPG"]
         t1_PAPG = stats_df[stats_df["team"] == team1]["PAPG"]
@@ -43,6 +44,9 @@ def sim_game(team1, team2, stats_df, n_sim):
         t1_points = (np.random.normal(t1_PPG, 12) + np.random.normal(t2_PAPG, 12)) / 2
         t2_points = (np.random.normal(t2_PPG, 12) + np.random.normal(t1_PAPG, 12)) / 2
 
+        t1_all_points.append(t1_points)
+        t2_all_points.append(t2_points)
+
         if t1_points > t2_points:
             winner = team1
         else:
@@ -50,7 +54,7 @@ def sim_game(team1, team2, stats_df, n_sim):
 
         winners.append(winner)
     
-    return t1_points, t2_points, winners
+    return t1_points, t2_points, winners, t1_all_points, t2_all_points
 
 
 st.title("March Madness Monte Carlo Simulator")
@@ -83,13 +87,10 @@ if second_team_choice:
     col1, col2, col3 = st.columns(3)
     with col1:
         team1_placeholder = st.empty()
-        #display_logo(team1, team1 == winner)
     with col2:
-        #st.write("vs")
         st.markdown("<h3 style='text-align: center;'>vs</h3>", unsafe_allow_html = True, text_alignment = "center")
     with col3:
         team2_placeholder = st.empty()
-        #display_logo(team1, team2 == winner)
 
     team1_placeholder.image(f"logos/{team1}.png")
     team2_placeholder.image(f"logos/{team2}.png")
@@ -100,7 +101,7 @@ else:
 n_sim = st.slider("Number of simulations", 100, 1000, 10)
 
 if st.button("Run Simulation"):
-    _, _, results = sim_game(team1, team2, df, n_sim)
+    _, _, results, t1_all_points, t2_all_points = sim_game(team1, team2, df, n_sim)
     
     # convert to percentages
     winner_array = np.array(results)
@@ -109,16 +110,7 @@ if st.button("Run Simulation"):
 
     probs = {team1: round(sum(winner_array) / len(winner_array), 2), team2: round(1 - (sum(winner_array) / len(winner_array)), 2)}
     winner = max(probs, key = probs.get)
-    #with col1:
-    #    team1_placeholder.markdown(
-    #        display_logo(team1, team1 == winner),
-    #        unsafe_allow_html=True
-    #    )
-    #with col3:
-    #    team2_placeholder.markdown(
-    #        display_logo(team2, team2 == winner),
-    #        unsafe_allow_html=True
-    #    )
+ 
     with team1_placeholder:
         display_logo(team1, team1 == winner)
     with team2_placeholder:
@@ -126,3 +118,34 @@ if st.button("Run Simulation"):
     
     st.write("Win Probabilities")
     st.dataframe(probs)
+    #st.bar_chart(t1_all_points)
+    t1_all_points_df = pd.DataFrame(t1_all_points, columns = ["Points"])
+    t1_all_points_df["Points_Bins"] = t1_all_points_df["Points"].transform(lambda x: pd.cut(x, bins=15, labels=False))
+    mean_df = t1_all_points_df.groupby(["Points_Bins"])["Points"].mean().reset_index()
+    t1_all_points_df = t1_all_points_df.merge(mean_df, on = "Points_Bins")
+    t1_all_points_df["Points_y"] = round(t1_all_points_df["Points_y"], 2)
+    bin_counts = (
+    t1_all_points_df.groupby("Points_y")
+                    .size()
+                    .reset_index(name="count")
+                    .sort_values("Points_y")
+)
+    #chart = alt.Chart(t1_all_points_df).mark_bar().encode(
+    #    # Bin the 'value' data for the x-axis
+    #    alt.X("Points_Bins", bin=True, title="Binned Value Range"),
+    #    # Count the frequency for the y-axis
+    #    y=alt.Y('count()', title="Frequency"),
+    #    # Add tooltips for interactivity
+    #    tooltip=["Points", 'count()']
+    #).properties(
+    #    title="Distribution of Random Data"
+    #).interactive() # Enable interactivity like zooming and panning
+
+    chart = alt.Chart(bin_counts).mark_bar().encode(
+        x=alt.X("Points_y:O", title="Points Bin"),
+        y=alt.Y("count:Q", title="Count")
+    )
+
+
+    # Display the chart in the Streamlit app
+    st.altair_chart(chart, use_container_width=True)
