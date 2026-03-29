@@ -106,8 +106,12 @@ if second_team_choice:
     with col3:
         team2_placeholder = st.empty()
 
-    team1_placeholder.image(f"logos/{team1}.png")
-    team2_placeholder.image(f"logos/{team2}.png")
+    # Check if both teams have been selected before displaying logos
+    try:
+        team1_placeholder.image(f"logos/{team1}.png")
+        team2_placeholder.image(f"logos/{team2}.png")
+    except:
+        st.write("## :red[Please ensure two teams are selected!]")
 
 else:
     st.write("Please select a team to simulate.")
@@ -117,8 +121,10 @@ n_sim = st.slider("Number of simulations", 100, 10000, 1000)
 
 # Run simulation button
 if st.button("Run Simulation"):
+    # Sim game n_sim times
     _, _, results, t1_all_points, t2_all_points = sim_game(team1, team2, df, n_sim)
 
+    # Collect winners
     winner_array = np.array(results)
     winner_array = winner_array == team1
 
@@ -126,6 +132,7 @@ if st.button("Run Simulation"):
     probs = {team1: round(sum(winner_array) / len(winner_array), 2), team2: round(1 - (sum(winner_array) / len(winner_array)), 2)}
     winner = max(probs, key = probs.get)
  
+    # Add border to logo off winning team with winner variable
     with team1_placeholder:
         display_logo(team1, team1 == winner)
     with team2_placeholder:
@@ -149,6 +156,7 @@ if st.button("Run Simulation"):
     combined = np.concatenate([both_points[both_points["Team"] == "Team 1"]["points_x"], both_points[both_points["Team"] == "Team 2"]["points_x"]])
     bins = np.linspace(combined.min(), combined.max(), 26)  # 25 bins
 
+    # Plot
     fig, ax = plt.subplots()
 
     plt.hist(both_points[both_points["Team"] == "Team 1"]["points_x"], bins = bins, alpha = 0.5, label = team1)
@@ -160,7 +168,7 @@ if st.button("Run Simulation"):
     
     st.pyplot(fig)
 
-    # Complute mean PPG
+    # Compute mean PPG
     t1_mean_ppg = sum(t1_all_points) / len(t1_all_points)
     t2_mean_ppg = sum(t2_all_points) / len(t2_all_points)
     teams_sum = t1_mean_ppg + t2_mean_ppg
